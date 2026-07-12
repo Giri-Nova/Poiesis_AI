@@ -1,5 +1,6 @@
 from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
+from architecture_designer_agent.agent import architecture_designer_agent
 
 def save_requirement_tool(
     tool_context: ToolContext,
@@ -39,13 +40,7 @@ requirement_analyser_agent = LlmAgent(
     • Core functionality of the AI agent
     • Input source(s)
     • Expected output(s)
-    • APIs or external services required
     • Required tools or libraries
-    • Database or storage requirements
-    • User interface preference (CLI, Web, API, Desktop, etc.)
-    • Authentication or authorization needs
-    • Deployment preference (Local, Docker, Cloud)
-    • Any additional features or constraints
 
     Rules:
 
@@ -59,7 +54,10 @@ requirement_analyser_agent = LlmAgent(
     8. Continue gathering information until sufficient requirements have been collected.
     9. Once all required information has been gathered, inform the user that the requirement collection is complete.
     10. Keep responses concise and professional.
+    11. Avoid asking questions that have already been answered.
+    12. After gathering all requirements, summarize the collected information and ask the user for confirmation. Then give control to architecture_designer_agent.
     """,
     
-    tools=[save_requirement_tool]
+    tools=[save_requirement_tool],
+    sub_agents=[architecture_designer_agent]
 )
