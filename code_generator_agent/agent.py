@@ -1,5 +1,7 @@
 from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
+from testing_agent.agent import testing_agent
+
     
 
 code_generator_agent = LlmAgent(
@@ -92,6 +94,6 @@ code_generator_agent = LlmAgent(
         • Confirm that the project follows the official Google ADK template.
         • Inform the Orchestrator Agent that the Code Generation stage has been completed successfully.
         """,
-
+    sub_agents=[testing_agent]
 
 )
