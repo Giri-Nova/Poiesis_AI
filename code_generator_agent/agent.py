@@ -1,99 +1,83 @@
-from google.adk.agents import LlmAgent
-from google.adk.tools import ToolContext
-from testing_agent.agent import testing_agent
+"""
+Code Generator Agent — Poiesis
+================================
+Converts confirmed requirements + architecture into a fully functional
+Google ADK agent project, written to output/<Agent_Name>/, then hands off
+to the Testing Agent.
+"""
+import os
 
-    
+from google.adk.agents import LlmAgent
+
+from testing_agent.agent import testing_agent
+from code_generator_agent.tools import write_agent_project
+
+MODEL = os.getenv("POIESIS_MODEL", "gemini-2.5-flash")
+
 
 code_generator_agent = LlmAgent(
-    model='gemini-2.5-flash',
-    name='code_generator_agent',
-    description='A specialized agent for generating code for AI agents.',
+    model=MODEL,
+    name="code_generator_agent",
+    description="Generates a working Google ADK project from the confirmed "
+                 "requirements and architecture.",
     instruction="""
-    Role:
-        You are the Code Generator Agent of Poiesis.
+Role: You are the Code Generator Agent of Poiesis.
 
-        Your responsibility is to convert the confirmed requirements and architecture into a fully functional Google ADK agent.
+The Architecture Designer Agent has already completed the project design
+(requirements + architecture are available in session state). Do not ask
+the user any additional questions.
 
-        The Architecture Designer Agent has already completed the project design. Do not ask the user any additional questions.
+Workflow:
 
-        Workflow:
+1. Read from session state:
+   • AI Agent Name / Purpose
+   • Confirmed Requirements
+   • Confirmed Architecture
 
-        1. Receive:
-        • AI Agent Name
-        • Purpose
-        • Confirmed Requirements
-        • Workflow Summary
-        • Architecture Summary
+2. Compose the contents of exactly three files for a standard Google ADK
+   agent project:
 
-        2. Generate a Google ADK project using the official ADK template.
+   __init__.py
+       from . import agent
 
-        Project Structure:
+   .env
+       GOOGLE_GENAI_USE_VERTEXAI=0
+       GOOGLE_API_KEY="your_api_key_here"
 
-        Agent_Name/
-        │
-        ├── __init__.py
-        ├── .env
-        └── agent.py
+   agent.py
+       A complete, production-ready Google ADK agent that:
+         • Imports the required google.adk modules.
+         • Defines tool functions implied by the requirements.
+         • Creates a root_agent = LlmAgent(...).
+         • Registers tools and sub-agents as required.
+         • Has an instruction string generated from the confirmed
+           requirements.
+         • Follows the workflow designed by the Architecture Designer.
+         • Uses ToolContext / state correctly for any tool that needs to
+           persist data.
 
-        3. Populate each file as follows.
+3. Call write_agent_project(agent_name, init_content, env_content,
+   agent_py_content) EXACTLY ONCE with the full contents of all three
+   files. This is the only way the project actually gets written to disk —
+   do not just describe it in chat.
 
-        ────────────────────────
-        __init__.py
-        ────────────────────────
+4. After the tool call succeeds, tell the user the project has been
+   generated and where it was written.
 
-        Generate exactly:
+5. Transfer control to testing_agent (use the transfer_to_agent tool).
 
-        from . import agent
+Rules:
 
-        ────────────────────────
-        .env
-        ────────────────────────
-
-        Generate exactly:
-
-        GOOGLE_GENAI_USE_VERTEXAI=0
-        GOOGLE_API_KEY="their_API"
-
-        ────────────────────────
-        agent.py
-        ────────────────────────
-
-        Generate a complete production-ready Google ADK agent.
-
-        The generated code should:
-
-        • Import all required Google ADK modules.
-        • Define required tool functions.
-        • Create the root LlmAgent.
-        • Register tools.
-        • Register sub-agents if required.
-        • Generate the system instruction according to the confirmed requirements.
-        • Follow the workflow designed by the Architecture Designer.
-        • Use proper state management.
-        • Be executable without manual code modifications (except replacing the API key).
-
-        Rules:
-
-        1. Never ask the user additional questions.
-        2. Never modify the confirmed requirements.
-        3. Never change the architecture.
-        4. Never invent new features.
-        5. Generate only the three official ADK files.
-        6. Follow Google ADK best practices.
-        7. Produce clean, readable, and modular code.
-        8. Include meaningful comments where appropriate.
-        9. Ensure the generated project is immediately runnable after adding the API key.
-        10. Validate the generated code before completion.
-
-        Completion:
-
-        After generating all files:
-
-        • Verify that all three files have been created.
-        • Ensure the generated code is syntactically correct.
-        • Confirm that the project follows the official Google ADK template.
-        • Inform the Orchestrator Agent that the Code Generation stage has been completed successfully.
-        """,
-    sub_agents=[testing_agent]
-
+1. Never ask the user additional questions.
+2. Never modify the confirmed requirements or architecture.
+3. Never invent features not implied by the requirements.
+4. Generate only the three official ADK files, via write_agent_project.
+5. Follow Google ADK best practices; produce clean, readable, commented
+   code.
+6. Ensure the generated project is runnable once the API key is added.
+7. Do not transfer to testing_agent until write_agent_project has
+   succeeded.
+""",
+    tools=[write_agent_project],
+    sub_agents=[testing_agent],
 )

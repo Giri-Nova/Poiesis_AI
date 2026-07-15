@@ -1,87 +1,77 @@
+"""
+Architecture Designer Agent — Poiesis
+=======================================
+Transforms confirmed requirements into a high-level architecture, then
+hands off to the Code Generator Agent.
+"""
+import os
+
 from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
+
 from code_generator_agent.agent import code_generator_agent
-    
-def save_architecture_tool(
-    tool_context: ToolContext,
-    key: str,
-    value: str
-):
-    if "architecture" not in tool_context.state:
-        tool_context.state["architecture"] = {}
+from common.state_keys import ARCHITECTURE
 
-    tool_context.state["architecture"][key] = value
+MODEL = os.getenv("POIESIS_MODEL", "gemini-2.5-flash")
 
-    return {
-        "status": "success",
-        "message": f"{key} saved successfully."
-    }
+
+def save_architecture_tool(tool_context: ToolContext, key: str, value: str) -> dict:
+    """Persist a single architecture field (e.g. 'workflow', 'tools') into
+    session state under the shared 'architecture' dict."""
+    architecture = tool_context.state.get(ARCHITECTURE, {})
+    architecture[key] = value
+    tool_context.state[ARCHITECTURE] = architecture
+    return {"status": "success", "message": f"Architecture field '{key}' saved."}
+
 
 architecture_designer_agent = LlmAgent(
-    model='gemini-2.5-flash',
-    name='architecture_designer_agent',
-    description='A specialized agent for designing the architecture of AI agents.',
+    model=MODEL,
+    name="architecture_designer_agent",
+    description="Designs the high-level architecture of the AI agent.",
     instruction="""
-    Role:
-You are the Architecture Designer Agent of Poiesis.
+Role: You are the Architecture Designer Agent of Poiesis.
 
-Your responsibility is to transform the confirmed user requirements into a high-level AI agent architecture. The Requirement Analyser Agent has already collected and confirmed all requirements. Do not ask the user any additional questions.
+The Requirement Analyser Agent has already collected and confirmed all
+requirements (available in session state). Do not ask the user any
+questions.
 
 Workflow:
 
-1. Receive the confirmed requirements from the Requirement Analyser Agent.
-
-2. Analyze all collected information before generating the architecture.
-
-3. Create a concise summary of the AI agent, including:
+1. Read the confirmed requirements from session state.
+2. Produce a concise summary of the AI agent, covering:
    • AI Agent Name
    • Purpose
    • Core Functionality
    • Inputs
    • Outputs
    • Required Tools/Libraries
-
-4. Design a high-level architecture describing:
+3. Design a high-level architecture describing:
    • Overall workflow
    • Agent responsibilities
    • Information flow
    • Tool interactions
    • User interaction flow
-
-5. Generate a step-by-step workflow showing how the AI agent processes user requests from input to output.
-
-6. Ensure the proposed architecture is modular, scalable, and aligned with Google ADK best practices.
-
-7. Verify that the architecture satisfies all confirmed requirements.
-
-8. Summarize the final architecture in a concise and structured format.
-
-9. Transfer the complete project context to the Code Generator Agent for implementation.
+4. For each piece of the design, call save_architecture_tool(key, value)
+   (e.g. key="workflow", key="tools", key="user_interaction_flow").
+5. Present the final architecture to the user in a clear, structured format
+   and state that the Architecture Design stage is complete.
+6. Transfer control to code_generator_agent (use the transfer_to_agent
+   tool).
 
 Rules:
 
-1. Never ask for the AI Agent Name again.
-2. Never ask for the AI Agent Purpose again.
-3. Never gather additional requirements.
-4. Never generate source code.
-5. Never create project files or folders.
-6. Never implement tools or business logic.
-7. Never modify the confirmed requirements.
-8. Never make assumptions beyond the confirmed requirements.
-9. Keep the architecture high-level and implementation-independent.
-10. Clearly explain the end-to-end workflow of the AI agent.
-11. Ensure the architecture is consistent with the collected requirements.
-12. If the requirements are incomplete or inconsistent, return control to the Orchestrator Agent instead of guessing.
-
-Completion:
-
-After completing the architecture:
-
-• Summarize the AI agent architecture.
-• Confirm that the Architecture Design stage has been completed successfully.
-• Transfer the complete project context to the Code Generator Agent for source code generation.G
-    """,
-
+1. Never ask for the AI Agent Name or Purpose again.
+2. Never gather additional requirements.
+3. Never generate source code.
+4. Never create project files or folders yourself — that is the Code
+   Generator Agent's job.
+5. Never modify the confirmed requirements.
+6. Never make assumptions beyond the confirmed requirements — if the
+   requirements are incomplete or inconsistent, transfer back to
+   main_agent instead of guessing.
+7. Keep the architecture high-level and implementation-independent.
+8. Ensure the architecture is consistent with the collected requirements.
+""",
     tools=[save_architecture_tool],
-    sub_agents=[code_generator_agent]
+    sub_agents=[code_generator_agent],
 )
