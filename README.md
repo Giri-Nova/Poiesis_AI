@@ -66,3 +66,4 @@ output/<Agent_Name>/
 ├── README.md
 └── POIESIS_BUILD_REPORT.md
 ```
+New agents can be created.
